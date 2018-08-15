@@ -3,6 +3,10 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"os"
+	"strconv"
+
+	"github.com/julienschmidt/httprouter"
 )
 
 // Image ...
@@ -20,21 +24,48 @@ type Product struct {
 	Image Image   `json:"image"`
 }
 
-var products = []Product{Product{0, "book", 10.5, Image{"", 10, 10}}, Product{0, "book", 10.5, Image{"", 10, 10}}}
+var products = []Product{
+	Product{0, "book", 10.5, Image{"", 10, 10}},
+	Product{1, "book1", 10.5, Image{"", 10, 10}},
+	Product{2, "book2", 10.5, Image{"", 10, 10}},
+	Product{3, "book3", 10.5, Image{"", 10, 10}},
+	Product{4, "book4", 10.5, Image{"", 10, 10}},
+	Product{5, "book5", 10.5, Image{"", 10, 10}},
+	Product{6, "book6", 10.5, Image{"", 10, 10}}}
 
 func main() {
-	http.HandleFunc("/product", ShowProduct)
-	http.HandleFunc("/", ShowProducts)
-	http.ListenAndServe(":8080", nil)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	router := httprouter.New()
+	router.GET("/products", ShowProducts)
+	router.GET("/product/:id", ShowProduct)
+	router.GET("/error", ShowError)
+	http.ListenAndServe(":"+port, router)
+}
+
+// ShowError (w http.ResponseWriter, r *http.Request)
+func ShowError(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	js, err := json.Marshal("NOT FOUND")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(js)
 }
 
 // ShowProduct (w http.ResponseWriter, r *http.Request)
-func ShowProduct(w http.ResponseWriter, r *http.Request) {
-	// products := []Product{}
-	// products = append(products, Product{0, "book", 10.5, Image{"", 10, 10}})
-	// products = append(products, Product{1, "pencel", 10.5, Image{"", 20, 10}})
+func ShowProduct(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	index, error := strconv.ParseInt(ps.ByName("id"), 10, 64)
+	if error != nil {
+		http.Redirect(w, r, "", http.StatusNotFound)
+		return
+	}
 
-	product := Product{0, "book", 10.5, Image{"", 20, 10}}
+	product := products[index]
+
 	js, err := json.Marshal(product)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -45,12 +76,7 @@ func ShowProduct(w http.ResponseWriter, r *http.Request) {
 }
 
 // ShowProducts (w http.ResponseWriter, r *http.Request)
-func ShowProducts(w http.ResponseWriter, r *http.Request) {
-	// products := []Product{Product{0, "book", 10.5, Image{"", 10, 10}}, Product{0, "book", 10.5, Image{"", 10, 10}}}
-	// products = append(products, Product{0, "book", 10.5, Image{"", 10, 10}})
-	// products = append(products, Product{1, "pencel", 10.5, Image{"", 20, 10}})
-
-	// product := Product{{0, "book", 10.5}, {0, "book1", 10.5}}
+func ShowProducts(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	js, err := json.Marshal(products)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
